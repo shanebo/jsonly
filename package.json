@@ -1,0 +1,14 @@
+{
+	"name": "jsonly",
+	"version": "0.0.1",
+	"description": "json stuff",
+	"keywords": [""],
+	"repository": "git://github.com/shanebo/jsonly.git",
+	"author": "Shane Thacker <shane@steadymade.com>",
+	"dependencies": {
+		"open-uri": "0.3.5",
+		"hitch": "0.0.0"
+	},
+	"engine": ">= 0.4.1",
+	"main": "./lib/jsonly"
+}
