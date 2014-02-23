@@ -1,12 +1,12 @@
 {
 	"name": "jsonly",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Cache remote APIs in memory and find values as needed using powerful query methods.",
 	"keywords": ["memcache remote apis", "json", "query"],
 	"repository": "git://github.com/shanebo/jsonly.git",
 	"author": "Shane Thacker <shane@steadymade.com>",
 	"dependencies": {
-		"drill": "0.0.1",
+		"drill": "0.0.2",
 		"superagent": "0.16.0"
 	},
 	"engine": ">= 0.4.1",
