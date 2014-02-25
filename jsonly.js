@@ -1,13 +1,14 @@
 
 
-var request = require('superagent');
+var request = require('request');
 var Drill = require('drill');
 
 
 var Jsonly = function(settings){
 	this.cache = {};
 	this.api = settings.api;
-	this.endpoints = settings.endpoints;
+	this.endpoints = this.build(settings.endpoints);
+	this.token = settings.token || false;
 	this.timeout = settings.timeout || 10000;
 	this.retry = settings.retry || 15000;
 	this.refresh(this.endpoints, settings.onComplete);
@@ -15,6 +16,16 @@ var Jsonly = function(settings){
 
 
 Jsonly.prototype = {
+
+	build: function(endpoints){
+		if (typeof endpoints[0] == 'object') return endpoints;
+		return endpoints.map(function(endpoint){
+			return {
+				endpoint: endpoint,
+				key: endpoint
+			};
+		});
+	},
 
 	extend: function(instance){
 		for (prop in Drill.prototype) {
@@ -25,14 +36,15 @@ Jsonly.prototype = {
 	},
 
 	refresh: function(endpoints, next){
-		var watching = endpoints.filter(function(endpoint, i){
+		var watching = endpoints.map(function(endpoint){
 			if (typeof endpoint == 'object') {
-				if (new Drill(this.endpoints).findOne(endpoint)) return true;
-				return false;
+				return new Drill(this.endpoints).findOne(endpoint);
 			} else {
-				return this.endpoints.indexOf(endpoint) != -1;
+				return new Drill(this.endpoints).findOne({endpoint: endpoint});
 			}
-		}, this);
+		}, this).filter(function(endpoint){
+			return endpoint;
+		});
 
 		this.count = watching.length;
 		this.next = next || this.next;
@@ -40,24 +52,33 @@ Jsonly.prototype = {
 	},
 
 	fetch: function(endpoint){
-		var route = typeof endpoint == 'object' ? endpoint.endpoint : endpoint;
-		var key = typeof endpoint == 'object' ? endpoint.key : endpoint;
-
-		var url = this.api + route;
+		var url = this.api + endpoint.endpoint;
 		var retry = setTimeout(this.fetch.bind(this), this.retry, endpoint);
 		console.log('Requested:\t' + url);
 
-		request.get(url).timeout(this.timeout)
-			.on('error', function(error){
-				console.log(error.timeout ? 'Timeout:\t' + url : error.message);
-			})
-			.end(function(response){
+		var options = {
+			url: url,
+			timeout: this.timeout,
+			json: true
+		};
+
+		if (this.token) {
+			options.headers = {
+				'Authorization': 'Bearer ' + this.token
+			}
+		}
+
+		request(options, function(error, response, body) {
+			if (!error && response.statusCode == 200) {
 				console.log('Cached:\t\t' + url);
 				clearTimeout(retry);
-				this.cache[key] = response.body;
+				this.cache[endpoint.key] = body;
 				this.count -= 1;
 				if (!this.count) this.done();
-			}.bind(this));
+			} else {
+				console.log(error);
+			}
+		}.bind(this));
 	},
 
 	done: function(){
