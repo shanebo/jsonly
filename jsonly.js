@@ -75,6 +75,11 @@ Jsonly.prototype = {
 				this.cache[endpoint.key] = body;
 				this.count -= 1;
 				if (!this.count) this.done();
+			} else if (response.statusCode == 404) {
+				console.log('404:\t\t' + url);
+				clearTimeout(retry);
+				this.count -= 1;
+				if (!this.count) this.done();
 			} else {
 				console.log(error);
 			}
