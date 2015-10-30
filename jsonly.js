@@ -5,13 +5,14 @@ var Drill = require('drill');
 
 
 var Jsonly = function(settings){
-	this.cache = {};
+	this.cache = settings.data || {};
 	this.api = settings.api;
 	this.endpoints = this.build(settings.endpoints);
 	this.token = settings.token || false;
 	this.timeout = settings.timeout || 10000;
 	this.retry = settings.retry || 15000;
 	this.refresh(this.endpoints, settings.onComplete);
+	this.extend(new Drill(this.cache));
 }
 
 
