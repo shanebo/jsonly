@@ -1,102 +1,88 @@
 
 
-var request = require('request');
+var superagent = require('superagent');
 var Drill = require('drill');
 
 
 var Jsonly = function(settings){
-	this.cache = settings.data || {};
-	this.api = settings.api;
-	this.endpoints = this.build(settings.endpoints);
-	this.token = settings.token || false;
-	this.timeout = settings.timeout || 10000;
-	this.retry = settings.retry || 15000;
-	this.refresh(this.endpoints, settings.onComplete);
-	this.extend(new Drill(this.cache));
+    this.cache = settings.data || {};
+    this.api = settings.api;
+    this.endpoints = this.build(settings.endpoints);
+    this.token = settings.token || false;
+    this.timeout = settings.timeout || 10000;
+    this.retry = settings.retry || 15000;
+    this.refresh(this.endpoints, settings.onComplete);
+    this.extend(new Drill(this.cache));
 }
 
 
 Jsonly.prototype = {
 
-	build: function(endpoints){
-		if (typeof endpoints[0] == 'object') return endpoints;
-		return endpoints.map(function(endpoint){
-			return {
-				endpoint: endpoint,
-				key: endpoint
-			};
-		});
-	},
+    build: function(endpoints){
+        if (typeof endpoints[0] == 'object') return endpoints;
+        return endpoints.map(function(endpoint){
+            return {
+                endpoint: endpoint,
+                key: endpoint
+            };
+        });
+    },
 
-	extend: function(instance){
-		for (prop in Drill.prototype) {
-			if (Drill.prototype.hasOwnProperty(prop)) {
-				this[prop] = instance[prop];
-			}
-		}
-	},
+    extend: function(instance){
+        for (prop in Drill.prototype) {
+            if (Drill.prototype.hasOwnProperty(prop)) {
+                this[prop] = instance[prop];
+            }
+        }
+    },
 
-	refresh: function(endpoints, next){
-		var watching = endpoints.map(function(endpoint){
-			if (typeof endpoint == 'object') {
-				return new Drill(this.endpoints).findOne(endpoint);
-			} else {
-				return new Drill(this.endpoints).findOne({endpoint: endpoint});
-			}
-		}, this).filter(function(endpoint){
-			return endpoint;
-		});
+    refresh: function(endpoints, next){
+        var watching = endpoints.map(function(endpoint){
+            if (typeof endpoint == 'object') {
+                return new Drill(this.endpoints).findOne(endpoint);
+            } else {
+                return new Drill(this.endpoints).findOne({endpoint: endpoint});
+            }
+        }, this).filter(function(endpoint){
+            return endpoint;
+        });
 
-		this.count = watching.length;
-		this.next = next || this.next;
-		watching.forEach(this.fetch, this);
-	},
+        this.count = watching.length;
+        this.next = next || this.next;
+        watching.forEach(this.fetch, this);
+    },
 
-	fetch: function(endpoint){
-		var url = this.api + endpoint.endpoint;
-		var retry = setTimeout(this.fetch.bind(this), this.retry, endpoint);
-		console.log('Requested:\t' + url);
+    fetch: function(endpoint){
+        var url = this.api + endpoint.endpoint;
+        var retry = setTimeout(this.fetch.bind(this), this.retry, endpoint);
+        var request = superagent.get(url).type('json').timeout(this.timeout);
+        if (this.token) request.set('Authorization', 'Bearer ' + this.token);
 
-		var options = {
-			url: url,
-			timeout: this.timeout,
-			json: true
-		};
+        request.end(function(err, res){
+            if (err) {
+                console.log('Jsonly ' + err.status + ':' + url);
+                console.log(error);
+            } else {
+                console.log('Jsonly cached: ' + url);
+                clearTimeout(retry);
+                this.cache[endpoint.key] = res.body;
+                this.count -= 1;
+                if (!this.count) this.done();
+            }
+        }.bind(this));
 
-		if (this.token) {
-			options.headers = {
-				'Authorization': 'Bearer ' + this.token
-			}
-		}
+        console.log('Jsonly requested: ' + url);
+    },
 
-		request(options, function(error, response, body) {
-			if (!error && response.statusCode == 200) {
-				console.log('Cached:\t\t' + url);
-				clearTimeout(retry);
-				this.cache[endpoint.key] = body;
-				this.count -= 1;
-				if (!this.count) this.done();
-			} else if (response.statusCode == 404) {
-				console.log('404:\t\t' + url);
-				clearTimeout(retry);
-				this.count -= 1;
-				if (!this.count) this.done();
-			} else {
-				console.log(error);
-			}
-		}.bind(this));
-	},
-
-	done: function(){
-		console.log('All requested endpoints are cached');
-		var instance = new Drill(this.cache);
-		this.extend(instance);
-		if (this.next) this.next();
-	}
-
+    done: function(){
+        console.log('Jsonly endpoints are cached.');
+        var instance = new Drill(this.cache);
+        this.extend(instance);
+        if (this.next) this.next();
+    }
 };
 
 
 module.exports = function(settings){
-	return new Jsonly(settings);
+    return new Jsonly(settings);
 }
