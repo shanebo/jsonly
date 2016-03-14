@@ -61,7 +61,7 @@ Jsonly.prototype = {
         request.end(function(err, res){
             if (err) {
                 console.log('Jsonly ' + err.status + ':' + url);
-                console.log(error);
+                console.log(err);
             } else {
                 console.log('Jsonly cached: ' + url);
                 clearTimeout(retry);
