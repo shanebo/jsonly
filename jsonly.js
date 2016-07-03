@@ -8,10 +8,10 @@ var Jsonly = function(settings){
     this.cache = settings.data || {};
     this.api = settings.api;
     this.endpoints = this.build(settings.endpoints);
-    this.token = settings.token || false;
+    this.auth = settings.auth || false;
     this.timeout = settings.timeout || 10000;
     this.retry = settings.retry || 15000;
-    this.refresh(this.endpoints, settings.onComplete);
+    this.recache(this.endpoints, settings.onComplete);
     this.extend(new Drill(this.cache));
 }
 
@@ -36,7 +36,7 @@ Jsonly.prototype = {
         }
     },
 
-    refresh: function(endpoints, next){
+    recache: function(endpoints, next){
         var watching = endpoints.map(function(endpoint){
             if (typeof endpoint == 'object') {
                 return new Drill(this.endpoints).findOne(endpoint);
@@ -53,10 +53,12 @@ Jsonly.prototype = {
     },
 
     fetch: function(endpoint){
-        var url = this.api + endpoint.endpoint;
+        var url = (endpoint.api || this.api) + endpoint.endpoint;
         var retry = setTimeout(this.fetch.bind(this), this.retry, endpoint);
         var request = superagent.get(url).type('json').timeout(this.timeout);
-        if (this.token) request.set('Authorization', 'Bearer ' + this.token);
+        if (endpoint.auth || this.auth) {
+            request.set('Authorization', endpoint.auth || this.auth);
+        }
 
         request.end(function(err, res){
             if (err) {
